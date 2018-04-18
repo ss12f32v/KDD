@@ -12,14 +12,15 @@ class Seq2Seq(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, inputs, targets):
-        input_vars, input_lengths = inputs
-        encoder_outputs, encoder_hidden = self.encoder.forward(input_vars, input_lengths)
-        decoder_outputs, decoder_hidden = self.decoder.forward(context_vector=encoder_hidden, targets=targets)
-        return decoder_outputs, decoder_hidden
+    def forward(self, inputs):
+        input_vars = inputs
+        encoder_outputs, encoder_hidden, encoder_transform = self.encoder.forward(input_vars)
+        decoder_outputs, decoder_hidden = self.decoder.forward(context_vector=encoder_hidden, decoder_first_input=encoder_transform)
+        return encoder_outputs, decoder_outputs
 
     def evaluation(self, inputs):
         input_vars, input_lengths = inputs
         encoder_outputs, encoder_hidden = self.encoder(input_vars, input_lengths)
         decoded_sentence = self.decoder.evaluation(context_vector=encoder_hidden)
         return decoded_sentence
+    

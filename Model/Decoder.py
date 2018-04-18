@@ -6,65 +6,53 @@ from torch.autograd import Variable
 
 class VanillaDecoder(nn.Module):
 
-    def __init__(self, hidden_size, output_size, max_length, teacher_forcing_ratio, sos_id, use_cuda):
+    def __init__(self, input_size, hidden_size, output_size, use_cuda):
         """Define layers for a vanilla rnn decoder"""
         super(VanillaDecoder, self).__init__()
 
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.embedding = nn.Embedding(output_size, hidden_size)
-        self.gru = nn.GRU(hidden_size, hidden_size)
+        self.gru = nn.GRU(input_size, hidden_size)
         self.out = nn.Linear(hidden_size, output_size)
         self.log_softmax = nn.LogSoftmax()  # work with NLLLoss = CrossEntropyLoss
-
-        self.max_length = max_length
-        self.teacher_forcing_ratio = teacher_forcing_ratio
-        self.sos_id = sos_id
+        self.output_length = 48
         self.use_cuda = use_cuda
 
     def forward_step(self, inputs, hidden):
         # inputs: (time_steps=1, batch_size)
-        batch_size = inputs.size(1)
-        embedded = self.embedding(inputs)
-        embedded.view(1, batch_size, self.hidden_size)  # S = T(1) x B x N
-        rnn_output, hidden = self.gru(embedded, hidden)  # S = T(1) x B x H
-        rnn_output = rnn_output.squeeze(0)  # squeeze the time dimension
-        output = self.log_softmax(self.out(rnn_output))  # S = B x O
-        return output, hidden
+        rnn_output, hidden = self.gru(inputs, hidden)  #rnn_output=T(1) X B X H  inputs = T(1) x B x H
+        output = self.out(rnn_output.transpose(0,1).squeeze(1)).unsqueeze(1)  # S = B x O
 
-    def forward(self, context_vector, targets):
+
+        return output, rnn_output, hidden
+
+    def forward(self, context_vector, decoder_first_input):
 
         # Prepare variable for decoder on time_step_0
-        target_vars, target_lengths = targets
         batch_size = context_vector.size(1)
-        decoder_input = Variable(torch.LongTensor([[self.sos_id] * batch_size]))
+        decoder_input = decoder_first_input
 
         # Pass the context vector
         decoder_hidden = context_vector
 
-        max_target_length = max(target_lengths)
         decoder_outputs = Variable(torch.zeros(
-            max_target_length,
+            self.output_length,
             batch_size,
             self.output_size
-        ))  # (time_steps, batch_size, vocab_size)
-
+        ))  # (time_steps, batch_size, vocab_size) contain every timestep air prediction 
         if self.use_cuda:
             decoder_input = decoder_input.cuda()
             decoder_outputs = decoder_outputs.cuda()
-
-        use_teacher_forcing = True if random.random() > self.teacher_forcing_ratio else False
-
+        
+       
         # Unfold the decoder RNN on the time dimension
-        for t in range(max_target_length):
-            decoder_outputs_on_t, decoder_hidden = self.forward_step(decoder_input, decoder_hidden)
-            decoder_outputs[t] = decoder_outputs_on_t
-            if use_teacher_forcing:
-                decoder_input = target_vars[t].unsqueeze(0)
-            else:
-                decoder_input = self._decode_to_index(decoder_outputs_on_t)
+        for t in range(self.output_length):
+            output, _, decoder_hidden = self.forward_step(decoder_input, decoder_hidden)
+            decoder_outputs[t] = output
+           
 
-        return decoder_outputs, decoder_hidden
+        return decoder_outputs.transpose(0,1), decoder_hidden
 
     def evaluation(self, context_vector):
         batch_size = context_vector.size(1) # get the batch size

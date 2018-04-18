@@ -23,7 +23,7 @@ class DataTransformer(object):
         for station in self.station_id:
             self.every_station_data.append(self.data.loc[station,:].iloc[10:10282,:].drop(['utc_time'], axis=1).as_matrix())
 
-    def mini_batch_generator(self, data, batch_size= 10, window_size= 2, use_cuda= False ):
+    def mini_batch_generator(self, data, batch_size= 10, window_size=10, use_cuda= False ):
         one_pair_length = window_size * 24  + 48 
         number_of_pair_data = int( (len(data)-48) / window_size * 24)
             
@@ -50,11 +50,11 @@ class DataTransformer(object):
             ]
         
         for batch,label in zip (mini_batches,mini_labels):
-            assert batch.shape == label.shape
+            # assert batch.shape == label.shape
             input_var = Variable(torch.FloatTensor(batch)).transpose(0, 1)  # time * batch
             target_var = Variable(torch.FloatTensor(label)).transpose(0, 1)  # time * batch
-            print(input_var.shape)
-            print(target_var.shape)
+            # print(input_var.shape)
+            # print(target_var.shape)
 
             if self.use_cuda:
                     input_var = input_var.cuda()
