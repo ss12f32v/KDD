@@ -59,8 +59,10 @@ class Trainer(object):
 
         concat_predict = torch.cat((encoder_outputs, decoder_outputs), dim= 1)
         concat_label = torch.cat((input_batch, target_batch), dim= 1)
-        print(concat_predict.size())
-        loss = 2 * torch.abs(concat_predict - concat_label).sum() /  (concat_predict + concat_label).sum()
+        
+        print(torch.abs(concat_predict - concat_label).size())
+        loss = 2 *  (torch.abs(concat_predict - concat_label).sum(2) /  (concat_predict + concat_label).sum(2)) # B ＊　Ｔ
+        loss = loss.sum()
         loss = loss / (concat_predict.size(0) * concat_predict.size(1))   # Divide the batch size and number of days to get mean 
 
         return loss
