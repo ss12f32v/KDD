@@ -1,5 +1,7 @@
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
+from sklearn import preprocessing
+
 
 import pandas as pd 
 import numpy as np 
@@ -16,12 +18,39 @@ class DataTransformer(object):
         self.prepare_data()
 
     def prepare_data(self):
-        self.data = self.raw_data.fillna(0)
+        self.data = self.raw_data.dropna(axis='index', how='any')
+        self.feature_expand()
         self.data.set_index(['stationId'], inplace=True)
         self.station_id = self.data.index.unique().tolist()
         self.every_station_data = []
         for station in self.station_id:
-            self.every_station_data.append(self.data.loc[station,:].iloc[10:10282,:].drop(['utc_time'], axis=1).as_matrix())
+            self.every_station_data.append(self.data.loc[station,:].iloc[10:10282,:].as_matrix())
+    
+    def feature_expand(self):
+        day_time = pd.to_datetime(self.data['utc_time']).dt
+
+        # Expand some time feature
+        self.data['hour'] = day_time.hour
+        self.data['day'] = day_time.day
+        self.data['month'] = day_time.month
+        self.data['year'] = day_time.year
+        self.data['dayofweek'] = day_time.dayofweek
+        self.data['dayofyear'] = day_time.dayofyear
+        self.data['is_weekend'] = (self.data['dayofweek']==5) | (self.data['dayofweek']==6)
+        self.data['work_time'] = ( self.data.hour > 6) & ( self.data.hour < 20)
+
+        # Drop utc-time column. We already get some feature above
+        self.data.drop(['utc_time'], axis=1, inplace = True)
+        
+        le = preprocessing.LabelEncoder()
+        self.one_hot_candidate_columns = ['hour', 'day',
+                                          'month', 'year',
+                                          'dayofweek',
+                                          'is_weekend', 'work_time']
+        for column_name in self.one_hot_candidate_columns:
+            self.data[column_name] = le.fit_transform(self.data[column_name])
+
+
 
     def mini_batch_generator(self, data, batch_size= 10, window_size=10, use_cuda= False ):
         one_pair_length = window_size * 24  + 48 
@@ -29,13 +58,13 @@ class DataTransformer(object):
             
         batch_list = []
         label_list = []
-        for k in range(0, len(data), window_size *24):    
+        for k in range(0, len(data), window_size *24):     # 0, data_length, stride
             if k + window_size *24 + 48 <= len(data):
                 batch_list.append(data[k: k + window_size *24])
         
         for k in range(0, len(data), window_size *24):
             if k + window_size *24 + 48 <= len(data):
-                label_list.append(data[k + window_size *24: k + window_size *24 +48])
+                label_list.append(data[k + window_size *24: k + window_size *24 +48, 0:6])
 
         
         assert len(batch_list) == len(label_list)

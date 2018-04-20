@@ -32,8 +32,8 @@ if __name__ == "__main__":
     seq2seq = Seq2Seq(encoder=Enc,
                     decoder=Dec)
 
-    train_logger = Logger('./logs/seq2seq')
-    valid_logger = Logger('./logs/seq2seq')
+    train_logger = Logger('./logs/seq2seq_train')
+    valid_logger = Logger('./logs/seq2seq_valid')
     loggers = (train_logger, valid_logger)
     trainer = Trainer(seq2seq, data_transformer, loggers= loggers, learning_rate = 0.01, use_cuda= True)
 

@@ -41,14 +41,14 @@ class Trainer(object):
                     # calculate the loss and back prop.
                     cur_loss = self.get_loss(encoder_outputs,
                                              decoder_outputs,
-                                             input_batch.transpose(0, 1),
+                                             input_batch[:,:,0:6].transpose(0, 1),
                                              target_batch.transpose(0, 1))
 
                     smape_loss = self.smape_loss(encoder_outputs,
                                                  decoder_outputs,
-                                                 input_batch.transpose(0, 1),
+                                                 input_batch[:,:,0:6].transpose(0, 1),
                                                  target_batch.transpose(0, 1))
-                                             
+                    cur_loss.backward()                     
                     # logging
                     self.global_step += 1
                     if self.global_step % 10 == 0:
@@ -58,7 +58,7 @@ class Trainer(object):
                         # self.save_model()
                         self.validation(valid_data)
 
-                    cur_loss.backward()
+                    
 
                     # optimize
                     self.optimizer.step()
@@ -70,6 +70,8 @@ class Trainer(object):
         concat_predict = torch.cat((encoder_outputs, decoder_outputs), dim= 1)
         concat_label = torch.cat((input_batch, target_batch), dim= 1)
         
+        concat_predict = concat_predict[:, :, :3]
+        concat_label = concat_label[:, :, :3]
         # print(torch.abs(concat_predict - concat_label).size())
         loss = 2 *  (torch.abs(concat_predict - concat_label).sum(2) /  (concat_predict + concat_label).sum(2)) # B ＊　Ｔ
         loss = loss.sum()
@@ -78,7 +80,8 @@ class Trainer(object):
         return loss
 
     def get_loss(self, encoder_outputs, decoder_outputs, input_batch, target_batch):  
-        
+        # print("Input batch size", input_batch.size())
+        # print("Target batch size", target_batch.size())
         concat_predict = torch.cat((encoder_outputs, decoder_outputs), dim= 1)
         concat_label = torch.cat((input_batch, target_batch), dim= 1)
 
@@ -100,12 +103,12 @@ class Trainer(object):
                     # calculate the loss and back prop.
                     cur_mse_loss = self.get_loss(encoder_outputs,
                                              decoder_outputs,
-                                             input_batch.transpose(0, 1),
+                                             input_batch[:,:,0:6].transpose(0, 1),
                                              target_batch.transpose(0, 1))
 
                     smape_loss = self.smape_loss(encoder_outputs,
                                                  decoder_outputs,
-                                                 input_batch.transpose(0, 1),
+                                                 input_batch[:,:,0:6].transpose(0, 1),
                                                  target_batch.transpose(0, 1))
                     total_mse_loss += (cur_mse_loss*input_batch.size(1))  # Mulitply Batch number  input_batch size: T * B * H 
                     total_smape_loss += (smape_loss*input_batch.size(1))
@@ -136,5 +139,5 @@ class Trainer(object):
                 self.train_logger.scalar_summary(tag, value, self.global_step)
 
         else:
-         
-            pass
+            for tag, value in info.items():
+                self.valid_logger.scalar_summary(tag, value, self.global_step)
