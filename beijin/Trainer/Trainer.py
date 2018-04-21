@@ -37,6 +37,7 @@ class Trainer(object):
                 for input_batch, target_batch in self.data_transformer.mini_batch_generator(train_data, batch_size=batch_size, window_size= self.window_size):
 
                     self.optimizer.zero_grad()
+                    self.model.train()
                     encoder_outputs, decoder_outputs = self.model(input_batch)
 
                     
@@ -53,10 +54,10 @@ class Trainer(object):
                     cur_loss.backward()                     
                     # logging
                     self.global_step += 1
-                    if self.global_step % 10 == 0:
+                    if self.global_step % 5 == 0:
                         self.tensorboard_log(cur_loss, smape_loss)
 
-                        print("Step: %d, Mse Loss : %f, SMAPE Loss : %f" %(self.global_step,cur_loss.data[0],smape_loss.data[0] ))
+                        print("Step: %d, Mse Loss : %4.4f, SMAPE Loss : %f" %(self.global_step, cur_loss.data[0], smape_loss.data[0] ), end='\t')
                         # self.save_model()
                         self.validation(valid_data)
 
@@ -67,8 +68,10 @@ class Trainer(object):
 
         self.save_model()
 
-    def smape_loss(self, encoder_outputs, decoder_outputs, input_batch, target_batch):  
-
+    def smape_loss(self, encoder_outputs, decoder_outputs, input_batch, target_batch, val_only=False):  
+        if val_only:
+            concat_predict = decoder_outputs
+            concat_label = target_batch
         concat_predict = torch.cat((encoder_outputs, decoder_outputs), dim= 1)
         concat_label = torch.cat((input_batch, target_batch), dim= 1)
         
@@ -81,14 +84,14 @@ class Trainer(object):
 
         return loss
 
-    def get_loss(self, encoder_outputs, decoder_outputs, input_batch, target_batch):  
-        # print("Input batch size", input_batch.size())
-        # print("Target batch size", target_batch.size())
+    def get_loss(self, encoder_outputs, decoder_outputs, input_batch, target_batch, val_only=False):  
+        if val_only:
+            concat_predict = decoder_outputs
+            concat_label = target_batch
         concat_predict = torch.cat((encoder_outputs, decoder_outputs), dim= 1)
         concat_label = torch.cat((input_batch, target_batch), dim= 1)
-
         
-        loss = self.criterion(concat_predict,concat_label)
+        loss = self.criterion(concat_predict, concat_label)
         # for i in range(concat_label.size(1)):
         #     i_timestep_predict = concat_predict[:,i,:].contiguous().view(concat_label.size(0),-1)
         #     i_timestep_label = concat_label[:,i,:].contiguous().view(concat_label.size(0),-1)
@@ -99,6 +102,7 @@ class Trainer(object):
         total_mse_loss = 0
         total_smape_loss = 0
         number_of_batch =0
+        self.model.eval()
         for input_batch, target_batch in self.data_transformer.mini_batch_generator(valid_data, batch_size=32, window_size=self.window_size):
                     encoder_outputs, decoder_outputs = self.model(input_batch)
 
@@ -106,19 +110,21 @@ class Trainer(object):
                     cur_mse_loss = self.get_loss(encoder_outputs,
                                              decoder_outputs,
                                              input_batch[:,:,0:6].transpose(0, 1),
-                                             target_batch.transpose(0, 1))
+                                             target_batch.transpose(0, 1),
+                                             val_only=True)
 
                     smape_loss = self.smape_loss(encoder_outputs,
                                                  decoder_outputs,
                                                  input_batch[:,:,0:6].transpose(0, 1),
-                                                 target_batch.transpose(0, 1))
+                                                 target_batch.transpose(0, 1),
+                                                 val_only=True)
                     total_mse_loss += (cur_mse_loss*input_batch.size(1))  # Mulitply Batch number  input_batch size: T * B * H 
                     total_smape_loss += (smape_loss*input_batch.size(1))
                     number_of_batch += input_batch.size(1)
         total_mse_loss /= number_of_batch
         total_smape_loss /= number_of_batch
         self.tensorboard_log(total_mse_loss, total_smape_loss, valid= True)
-        print("Validation, Mse Loss : %f, SMAPE Loss : %f" %(total_mse_loss.data[0],total_smape_loss.data[0] ))
+        print("Validation, Mse Loss : %4.4f, SMAPE Loss : %f" %(total_mse_loss.data[0],total_smape_loss.data[0] ))
 
 
     
