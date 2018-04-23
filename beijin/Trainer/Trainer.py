@@ -1,4 +1,6 @@
 import torch
+import numpy as np 
+from torch.autograd import Variable
 
 class Trainer(object):
 
@@ -46,28 +48,50 @@ class Trainer(object):
                     # calculate the loss and back prop.
                     cur_loss = self.get_loss(encoder_outputs,
                                              decoder_outputs,
-                                             input_batch[:,:,0:6].transpose(0, 1),
-                                             target_batch.transpose(0, 1))
+                                             input_batch[:,:,0:3].transpose(0, 1),
+                                             target_batch[:,:,0:3].transpose(0, 1))
 
                     smape_loss = self.smape_loss(encoder_outputs,
                                                  decoder_outputs,
-                                                 input_batch[:,:,0:6].transpose(0, 1),
-                                                 target_batch.transpose(0, 1)).data[0]
+                                                 input_batch[:,:,0:3].transpose(0, 1),
+                                                 target_batch[:,:,0:3].transpose(0, 1)).data[0]
                     cur_loss.backward()                     
                     # logging
                     self.global_step += 1
                     self.tensorboard_log(cur_loss.data[0], smape_loss)
                     if self.global_step % 5 == 0:
                         print("Step: %d, Mse Loss : %4.4f, SMAPE Loss : %f" %(self.global_step, cur_loss.data[0], smape_loss), end='\t')
-                    # self.save_model()
+                        
                         self.validation(valid_data, batch_size=150, time_lag=time_lag)
-
+                    try:
+                            pass
+                    except KeyboardInterrupt:
+                            print("Ctrl+c detected.")
+                            exit(0)
                     # optimize
+                    self.save_model()
                     self.optimizer.step()
 
         self.save_model()
 
-
+    def test(self, pretrained= True, time_lag=0):
+        if pretrained:
+            self.load_model()
+        self.model.eval()
+        output = []
+        print(len(self.data_transformer.every_station_data))
+        step = 0
+        for i , station_data in enumerate(self.data_transformer.every_station_data):
+            print("step:",i)
+            for j , (batch) in enumerate(self.data_transformer.create_test_encoder_data(station_data)):
+                print(batch.shape)
+                input_var = Variable(torch.FloatTensor(batch)).transpose(0, 1).cuda()
+                print(input_var.size())
+                encoder_outputs, decoder_outputs = self.model(input_var)
+                decoder_outputs = decoder_outputs.squeeze(0)
+                print(decoder_outputs.size())
+                output.append(decoder_outputs.data[0])
+        print(np.concatenate(output, axis=0).shape)
 
     def smape_loss(self, encoder_outputs, decoder_outputs, input_batch, target_batch, val_only=False):  
         if val_only:
@@ -111,13 +135,13 @@ class Trainer(object):
             # calculate the loss and back prop.
             cur_mse_loss = self.get_loss(encoder_outputs,
                                         decoder_outputs,
-                                        input_batch[:,:,0:6].transpose(0, 1),
-                                        target_batch.transpose(0, 1),
+                                        input_batch[:,:,0:3].transpose(0, 1),
+                                        target_batch[:,:,0:3].transpose(0, 1),
                                         val_only=True).data[0]
             smape_loss = self.smape_loss(encoder_outputs,
                                             decoder_outputs,
-                                            input_batch[:,:,0:6].transpose(0, 1),
-                                            target_batch.transpose(0, 1),
+                                            input_batch[:,:,0:3].transpose(0, 1),
+                                            target_batch[:,:,0:3].transpose(0, 1),
                                             val_only=True).data[0]
             total_mse_loss += (cur_mse_loss * input_batch.size(1))  # Mulitply Batch number  input_batch size: T * B * H 
             total_smape_loss += (smape_loss * input_batch.size(1))
