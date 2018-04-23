@@ -20,26 +20,29 @@ if __name__ == "__main__":
                                     use_cuda = True)
 
 
-    enc = HighwayEncoder(hidden_size=256,
-                        output_size=6).cuda()
+    enc = HighwayEncoder(hidden_size=512,
+                        output_size=6,
+                        embedding_size=100,
+                        depth=3).cuda()
 
 
     dec = VanillaDecoder(input_size=6,
-                        hidden_size=256, 
+                        hidden_size=512, 
                         output_size=6,
                         use_cuda=True).cuda()
 
     seq2seq = Seq2Seq(encoder=enc,
                     decoder=dec)
 
-    train_logger = Logger('./logs/seq2seq_highway_train/emb100-h256-lr1e-3-L7-batch32-ep30-2day-DECONLY')
-    valid_logger = Logger('./logs/seq2seq_highway_valid/emb100-h256-lr1e-3-L7-batch32-ep30-2day-DECONLY')
+    train_logger = Logger('./logs/seq2seq_highway_train/emb100-he512-d300-lr1e-3-window10-L3-batch32-ep100-2day-DECONLY-NoDrop')
+    valid_logger = Logger('./logs/seq2seq_highway_valid/emb100-he512-d300-lr1e-3-window10-L3-batch32-ep100-2day-DECONLY-NoDrop')
     loggers = (train_logger, valid_logger)
-    trainer = Trainer(seq2seq, data_transformer, loggers= loggers, learning_rate = 0.001, use_cuda= True)
+    trainer = Trainer(seq2seq, data_transformer, loggers=loggers, learning_rate=1e-3, use_cuda=True)
 
     
-    trainer.train(num_epochs=30, 
+    trainer.train(num_epochs=3700, 
                 batch_size=32, 
-                window_size = 2,
+                window_size = 10,
                 pretrained=False,
-                valid_portion=0.8)
+                valid_portion=0.8,
+                time_lag=10)

@@ -6,14 +6,14 @@ from torch.autograd import Variable
 
 class VanillaDecoder(nn.Module):
 
-    def __init__(self, input_size, hidden_size, output_size, use_cuda):
+    def __init__(self, input_size, hidden_size, output_size, use_cuda, num_layers=1):
         """Define layers for a vanilla rnn decoder"""
         super(VanillaDecoder, self).__init__()
 
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.embedding = nn.Embedding(output_size, hidden_size)
-        self.gru = nn.GRU(input_size, hidden_size)
+        self.gru = nn.GRU(input_size, hidden_size, num_layers=num_layers)
         self.out = nn.Linear(hidden_size, output_size)
         self.log_softmax = nn.LogSoftmax()  # work with NLLLoss = CrossEntropyLoss
         self.output_length = 48
