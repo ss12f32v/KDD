@@ -22,10 +22,8 @@ class VanillaEncoder(nn.Module):
         self.out = nn.Linear(hidden_size, output_size)
 
     def forward(self, input_seqs, hidden=None):
-
-        feature_embedding = self.feature_embedding(input_seqs)
-        new_input_seqs = torch.cat((input_seqs[:, :, 0:6], feature_embedding), dim= 2)
-        outputs, hidden = self.gru(new_input_seqs, hidden)
+        #feature_embedding = self.feature_embedding(input_seqs)
+        outputs, hidden = self.gru(input_seqs, hidden)
         hidden_tansformed = self.hidden_transform(hidden.transpose(0,1)).transpose(1,0)
         outputs_transformed = self.out(outputs.transpose(0,1))  # S = B x O
 
@@ -40,7 +38,7 @@ class BidirectionalGRUEncoder(nn.Module):
         self.num_layers = num_layers
 
         self.feature_embedding = FeatureEmbedding(embedding_size)
-        self.gru = nn.GRU(input_size= 6, 
+        self.gru = nn.GRU(input_size=3, 
                           hidden_size= hidden_size // 2,
                           bidirectional=True,
                           num_layers=num_layers)
@@ -53,10 +51,10 @@ class BidirectionalGRUEncoder(nn.Module):
         #print("E", feature_embedding.size())
         #new_input_seqs = torch.cat((input_seqs[:, :, 0:6], feature_embedding), dim= 2)
         #print("R", new_input_seqs.size())
-        #print(input_seqs.size())
-        outputs, hidden = self.gru(input_seqs[:, :, 0:6], hidden)
+        print(input_seqs.size())
+        outputs, hidden = self.gru(input_seqs, hidden)
         hidden = hidden[-self.num_layers:]
-        hidden = torch.cat(hidden, dim=1).unsqueeze(0)
+        hidden = torch.cat((hidden[0], hidden[1]), dim=1).unsqueeze(0)
         hidden_tansformed = self.hidden_transform(hidden.transpose(0,1)).transpose(1,0)
         outputs_transformed = self.out(outputs.transpose(0,1))  # S = B x O
 

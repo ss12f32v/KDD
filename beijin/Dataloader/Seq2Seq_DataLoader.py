@@ -117,12 +117,34 @@ class DataTransformer(object):
             
             yield input_var, target_var
 
-if __name__ == '__main__':
-    data_tran = DataTransformer(path = "../Data/beijing/beijing_2017_1_2018_3_aq.csv",
-                                use_cuda = True)
 
-    for station_data in data_tran.every_station_data:
-        for i , (batch, label) in enumerate(data_tran.mini_batch_generator(station_data)):
-            print(batch.shape)
-            print(label.shape)
-            print()
+
+class TestDataTransformer(object):
+
+    def __init__(self, path , use_cuda):
+        self.use_cuda = use_cuda
+        self.path = path
+        self.columns = ['PM2.5','PM10' ,'O3']
+        self.data = pd.read_csv(self.path)
+        self.prepare_data()
+
+    def prepare_data(self):
+        # self.data = self.raw_data.fillna(0)
+        #self.feature_expand()
+        self.data.set_index(['station_id'], inplace=True)
+        self.station_id = self.data.index.unique().tolist()
+        self.every_station_data = []
+        self.data = self.data.drop(['id', 'time'], axis=1)
+        for station in self.station_id:
+            self.every_station_data.append(self.data.loc[station,:].values)
+
+    def create_mini_batch(self, data, use_cuda=False):
+        mini_batches = np.array([data])
+        print(mini_batches.shape)
+        return mini_batches
+    
+    def variables_generator(self, batch):
+        input_var = Variable(torch.FloatTensor(batch)).transpose(0, 1)  # time * batch
+        if self.use_cuda:
+            input_var = input_var.cuda()
+        return input_var
