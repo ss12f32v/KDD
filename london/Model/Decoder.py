@@ -6,14 +6,14 @@ from torch.autograd import Variable
 
 class VanillaDecoder(nn.Module):
 
-    def __init__(self, input_size, hidden_size, output_size, use_cuda):
+    def __init__(self, input_size, hidden_size, output_size, use_cuda, num_layers=1):
         """Define layers for a vanilla rnn decoder"""
         super(VanillaDecoder, self).__init__()
 
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.embedding = nn.Embedding(output_size, hidden_size)
-        self.gru = nn.GRU(input_size, hidden_size)
+        self.gru = nn.GRU(input_size, hidden_size, num_layers=num_layers)
         self.out = nn.Linear(hidden_size, output_size)
         self.log_softmax = nn.LogSoftmax()  # work with NLLLoss = CrossEntropyLoss
         self.output_length = 48
@@ -22,7 +22,7 @@ class VanillaDecoder(nn.Module):
     def forward_step(self, inputs, hidden):
         # inputs: (time_steps=1, batch_size)
         rnn_output, hidden = self.gru(inputs, hidden)  #rnn_output=T(1) X B X H  inputs = T(1) x B x H
-        output = self.out(rnn_output.transpose(0,1).squeeze(1)).unsqueeze(1)  # S = B x O
+        output = self.out(rnn_output.transpose(0,1).squeeze(1)).unsqueeze(1).transpose(0, 1)  # S = 1 * B x O
 
 
         return output, rnn_output, hidden
@@ -50,7 +50,8 @@ class VanillaDecoder(nn.Module):
         for t in range(self.output_length):
             output, _, decoder_hidden = self.forward_step(decoder_input, decoder_hidden)
             decoder_outputs[t] = output
-           
+            
+            decoder_input = output
 
         return decoder_outputs.transpose(0,1), decoder_hidden
 

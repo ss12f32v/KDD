@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from Model.Encoder import VanillaEncoder
+from Model.Encoder import VanillaEncoder, BidirectionalGRUEncoder
 from Model.Decoder import VanillaDecoder
 from Model.Seq2Seq import Seq2Seq
 from Trainer.Trainer import Trainer
@@ -22,12 +22,15 @@ if __name__ == "__main__":
                                     use_cuda = True)
 
 
-    Enc = VanillaEncoder(hidden_size = 300,
-                        output_size = 3).cuda()
-
+    # Enc = VanillaEncoder(hidden_size = 300,
+    #                     output_size = 3).cuda()
+    Enc = BidirectionalGRUEncoder(hidden_size=512,
+                                    output_size=3,
+                                    embedding_size=100,
+                                    num_layers=2).cuda()
 
     Dec = VanillaDecoder(input_size = 3,
-                        hidden_size = 300, 
+                        hidden_size = 512, 
                         output_size = 3,
                         use_cuda = True).cuda()
 
